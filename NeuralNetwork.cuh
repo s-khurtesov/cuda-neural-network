@@ -7,16 +7,27 @@
 
 class NeuralNetwork {
 private:
+	bool initialized = false;
 	std::vector<Layer*> layers;
+	Tensor x;
+	Tensor y;
+
+	void calcError(Tensor& labels);
+	void calcCost(Tensor& labels, float* cost);
 
 public:
-	NeuralNetwork();
+	NeuralNetwork() { }
+
+	void init();
+	void clear();
 
 	void addLayer(Layer*);
 
-	Tensor& forward(Tensor* p_x);
-	void backward(Tensor* p_dy, float learning_rate);
+	Tensor& forward(Tensor& x);
+	void backward(Tensor& dy, float learning_rate);
 
-	Tensor* getX() { return layers.front()->getX(); }
-	Tensor* getY() { return layers.back()->getY(); }
+	void train(Tensor& x, Tensor& labels, int iters, float learning_rate);
+
+	Tensor& getX() { return x; }
+	Tensor& getY() { return y; }
 };

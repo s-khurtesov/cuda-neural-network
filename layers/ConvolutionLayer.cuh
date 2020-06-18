@@ -10,9 +10,6 @@ class ConvolutionLayer : public Layer {
 private:
 	cudnnHandle_t hCudnn;
 
-	Tensor x;
-	Tensor y;
-
 	Filter w;
 	Filter dw;
 	Tensor b;
@@ -47,11 +44,10 @@ public:
 		cudnnConvolutionBwdDataAlgo_t algoBwdData = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
 		cudnnConvolutionBwdFilterAlgo_t algoBwdFilter = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1);
 
-	Tensor* forward(Tensor* p_x);
-	Tensor* backward(Tensor* p_dy, float learning_rate, bool last);
+	void forward();
+	void backward(float learning_rate, bool last);
 
-	Tensor* getX() { return &x; }
-	Tensor* getY() { return &y; }
+	void init();
 
 	~ConvolutionLayer();
 };

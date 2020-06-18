@@ -13,27 +13,27 @@ int main()
     InitCudnn(&g_hCudnn);
 
     {
-        LayerShape shape1(100, 2, 30);
-        LayerShape shape2(100, 30, 1);
-
         NeuralNetwork nn;
-        nn.addLayer(new ConvolutionLayer("Convolution_1", shape1, g_hCudnn));
-        nn.addLayer(new ConvolutionLayer("Convolution_2", shape2, g_hCudnn));
+        Tensor x;
+        Tensor y;
+        Tensor labels;
+        int batchSize = 10;
 
-        Tensor* p_x = nn.getX();
-        Tensor* p_dy = nn.getY();
-        Tensor y(p_dy->N, p_dy->C, p_dy->H, p_dy->W);
+        nn.addLayer(new ConvolutionLayer("Convolution_1", LayerShape(batchSize, 2, 30), g_hCudnn));
+        nn.addLayer(new ConvolutionLayer("Convolution_2", LayerShape(batchSize, 30, 1), g_hCudnn));
 
-        CHECK_CUDA(cudaDeviceSynchronize());
+        nn.init();
 
-        y = nn.forward(p_x);
+        x = nn.getX();
+        y = nn.getY();
+        labels = y;
 
-        for (int i = 0; i < y.size(); i++)
-            p_dy->data[i] = 0.5f - y.data[i];
+        x.randomise();
+        for (int n = 0; n < y.N; n++) {
+            labels.data[n/* * labels.C*/] = (x.data[n * x.C] + x.data[n * x.C + 1] > 0) ? 1.0f : 0.0f;
+        }
 
-        nn.backward(p_dy, 0.01f);
-
-        CHECK_CUDA(cudaDeviceSynchronize());
+        nn.train(x, labels, 100, 0.01f);
     }
 
     CleanCudnn(&g_hCudnn);

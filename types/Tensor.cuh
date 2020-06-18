@@ -7,11 +7,11 @@
 class Tensor {
 private:
 	const cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
-	cudnnTensorFormat_t format;
 	bool allocated = false;
 	bool initialized = false;
 
 public:
+	cudnnTensorFormat_t format;
 	cudnnTensorDescriptor_t desc;
 	float* data;
 
@@ -61,22 +61,26 @@ public:
 	}
 
 	Tensor& operator=(Tensor& right) {
-		assert(initialized);
-		assert(right.initialized);
-		assert(right.allocated);
-		assert(N == right.N);
-		assert(C == right.C);
-		assert(H == right.H);
-		assert(W == right.W);
-		assert(format == right.format);
-		assert(dataType == right.dataType);
+		if (initialized) {
+			assert(right.initialized);
+			assert(right.allocated);
+			assert(N == right.N);
+			assert(C == right.C);
+			assert(H == right.H);
+			assert(W == right.W);
+			assert(format == right.format);
+			assert(dataType == right.dataType);
+		}
+		else {
+			init(right.N, right.C, right.H, right.W, right.format);
+		}
 
 		if (!allocated)
 			allocate();
 
 		CHECK_CUDA(cudaMemcpy(data, right.data, size() * sizeof(float), cudaMemcpyDefault));
 
-		return right;
+		return *this;
 	}
 
 	void randomise(float threshold = 1.0f)
@@ -87,6 +91,24 @@ public:
 		for (int i = 0; i < size(); i++) {
 			data[i] = normal_distribution(generator) * threshold;
 		}
+	}
+
+	void show(const char* descr)
+	{
+		printf("%s:\n", descr);
+		for (int n = 0; n < N; n++) {
+			printf("    N_%d:\n", n);
+			for (int c = 0; c < C; c++) {
+				printf("        C_%d:\n", c);
+				for (int h = 0; h < H; h++) {
+					for (int w = 0; w < W; w++) {
+						printf("%11.8f ", data[n * C + c * H + h * W + w]);
+					}
+					printf("\n");
+				}
+			}
+		}
+		putchar('\n');
 	}
 
 	~Tensor()
