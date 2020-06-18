@@ -22,9 +22,10 @@ void Check(errno_t err, errno_t success, const char* descr, const char* file, co
 {
     DWORD dErr = GetLastError();
     if (err != success) {
-        fprintf(stderr, "%s:%-4d %s\nERROR #%d (returned %d): %s", strrchr(file, '/') + 1, line, descr, dErr, err, GetErrorString(dErr).c_str());
+        std::string msg = GetErrorString(dErr);
+        fprintf(stderr, "%s:%-4d %s\nERROR #%d (returned %d): %s", strrchr(file, '/') + 1, line, descr, dErr, err, msg.c_str());
         CleanCuda();
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(msg.c_str());
     }
     else if (dErr != 0) {
         fprintf(stderr, "%s:%-4d WARNING: Returned as expected, but error #%d (returned %d): %s\n", strrchr(__FILE__, '/') + 1, __LINE__, dErr, err, GetErrorString(dErr).c_str());
@@ -36,7 +37,7 @@ void CheckCuda(cudaError_t cudaStatus, const char* descr, const char* file, cons
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "%s:%-4d %s\nERROR #%d: %s", strrchr(file, '/') + 1, line, descr, cudaStatus, cudaGetErrorString(cudaStatus));
         CleanCuda();
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(cudaGetErrorString(cudaStatus));
     }
 }
 
@@ -45,7 +46,7 @@ void CheckCudnn(cudnnStatus_t cudnnStatus, const char* descr, const char* file, 
     if (cudnnStatus != CUDNN_STATUS_SUCCESS) {
         fprintf(stderr, "%s:%-4d %s\nERROR #%d: %s", strrchr(file, '/') + 1, line, descr, cudnnStatus, cudnnGetErrorString(cudnnStatus));
         CleanCuda();
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(cudnnGetErrorString(cudnnStatus));
     }
 }
 

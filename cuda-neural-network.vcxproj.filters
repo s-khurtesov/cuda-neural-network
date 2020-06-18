@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="common.cu" />
+    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="layers\ConvolutionLayer.cu">
+      <Filter>layers</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.cuh" />
+    <ClInclude Include="layers\ConvolutionLayer.cuh">
+      <Filter>layers</Filter>
+    </ClInclude>
+    <ClInclude Include="layers\Layer.cuh">
+      <Filter>layers</Filter>
+    </ClInclude>
+    <ClInclude Include="types\Tensor.cuh">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\Filter.cuh">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\LayerShape.cuh">
+      <Filter>types</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="layers">
+      <UniqueIdentifier>{40adde34-6a63-4efb-80f6-4b94fa2c2b98}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="types">
+      <UniqueIdentifier>{e81ebc6d-a44e-4cf2-bd20-b2fb46438459}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -5,6 +5,8 @@
 #include <cudnn.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdexcept>
+
 
 void Check(errno_t err, errno_t success, const char* descr, const char* file, const int line);
 void CheckCuda(cudaError_t cudaStatus, const char* descr, const char* file, const int line);
