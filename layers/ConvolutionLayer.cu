@@ -1,9 +1,13 @@
 #include "ConvolutionLayer.cuh"
 
-ConvolutionLayer::ConvolutionLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_,
+#define dy	y
+#define dx	x
+
+ConvolutionLayer::ConvolutionLayer(
+	std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_,
 	cudnnConvolutionFwdAlgo_t algoFwd_, cudnnConvolutionBwdDataAlgo_t algoBwdData_,
 	cudnnConvolutionBwdFilterAlgo_t algoBwdFilter_)
-	: hCudnn(hCudnn_), algoFwd(algoFwd_), algoBwdData(algoBwdData_), algoBwdFilter(algoBwdFilter_)
+	: hCudnn(hCudnn_), hCublas(hCublas_), algoFwd(algoFwd_), algoBwdData(algoBwdData_), algoBwdFilter(algoBwdFilter_)
 {
 	this->name = name_;
 	this->shape = shape_;
@@ -85,22 +89,25 @@ void ConvolutionLayer::forward()
 
 void ConvolutionLayer::backward(float learning_rate, bool last)
 {
-	// y <-> dy
-
 	CHECK_CUDNN(cudnnConvolutionBackwardBias(
-		hCudnn,  alpha,  y->desc, y->data, beta,  db.desc, db.data));
+		hCudnn,  alpha, dy->desc, dy->data, beta,  db.desc, db.data));
 
 	CHECK_CUDNN(cudnnConvolutionBackwardFilter(
-		hCudnn, alpha, x.desc, x.data, y->desc, y->data,
+		hCudnn, alpha, x.desc, x.data, dy->desc, dy->data,
 		convDesc, algoBwdFilter,  workSpaceBwdFilter, workSpaceSizeInBytesBwdFilter,
 		beta,  dw.desc, dw.data));
 
 	if (!last) {
 		CHECK_CUDNN(cudnnConvolutionBackwardData(
-			hCudnn,  alpha,  w.desc, w.data,  y->desc, y->data,
+			hCudnn,  alpha,  w.desc, w.data, dy->desc, dy->data,
 			convDesc, algoBwdData,  workSpaceBwdData, workSpaceSizeInBytesBwdData,
-			beta,  x.desc, x.data));
+			beta, dx.desc, dx.data));
 	}
+
+	// Update Filter and Bias
+	float learn_alpha = -learning_rate;
+	CHECK_CUBLAS(cublasSaxpy_v2(hCublas, w.size(), &learn_alpha, dw.data, 1, w.data, 1));
+	CHECK_CUBLAS(cublasSaxpy_v2(hCublas, b.size(), &learn_alpha, db.data, 1, b.data, 1));
 }
 
 ConvolutionLayer::~ConvolutionLayer()

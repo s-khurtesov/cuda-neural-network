@@ -24,6 +24,9 @@
     <ClInclude Include="types\LayerShape.cuh">
       <Filter>types</Filter>
     </ClInclude>
+    <ClInclude Include="types\Descriptor.cuh">
+      <Filter>types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="layers">
