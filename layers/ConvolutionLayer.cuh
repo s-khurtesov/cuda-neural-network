@@ -9,6 +9,7 @@
 class ConvolutionLayer : public Layer {
 private:
 	cudnnHandle_t hCudnn;
+	cublasHandle_t hCublas;
 
 	Filter w;
 	Filter dw;
@@ -39,7 +40,7 @@ private:
 		cudnnDataType_t convDescComputeType = CUDNN_DATA_FLOAT);
 
 public:
-	ConvolutionLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, 
+	ConvolutionLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_, 
 		cudnnConvolutionFwdAlgo_t algoFwd = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM,
 		cudnnConvolutionBwdDataAlgo_t algoBwdData = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
 		cudnnConvolutionBwdFilterAlgo_t algoBwdFilter = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1);

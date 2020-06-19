@@ -113,6 +113,7 @@ void NeuralNetwork::calcCost(Tensor& labels, float* cost)
 	CHECK_CUDA(cudaGetLastError());
 }
 
+// TODO: Allow multiple batches
 void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_rate)
 {
 	assert(initialized);
@@ -138,17 +139,13 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 
 		for (Layer* cur_layer : layers) {
 			cur_layer->forward();
-			CHECK_CUDA(cudaDeviceSynchronize());
 		}
 
 		calcError(labels);
 
 		for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
 			(*iter)->backward(learning_rate, *iter == layers.front());
-			CHECK_CUDA(cudaDeviceSynchronize());
 		}
-
-		// TODO: Update filters
 
 		calcCost(labels, iterCost);
 		cost += *iterCost;
