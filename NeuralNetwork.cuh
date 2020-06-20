@@ -11,6 +11,7 @@ private:
 	std::vector<Layer*> layers;
 	Tensor x;
 	Tensor y;
+	Tensor dy;
 
 	void calcError(Tensor& labels);
 	void calcCost(Tensor& labels, float* cost);

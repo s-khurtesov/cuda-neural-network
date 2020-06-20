@@ -1,8 +1,5 @@
 #include "ConvolutionLayer.cuh"
 
-#define dy	y
-#define dx	x
-
 ConvolutionLayer::ConvolutionLayer(
 	std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_,
 	cudnnConvolutionFwdAlgo_t algoFwd_, cudnnConvolutionBwdDataAlgo_t algoBwdData_,
@@ -13,6 +10,7 @@ ConvolutionLayer::ConvolutionLayer(
 	this->shape = shape_;
 
 	x.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
+	dx.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
 
 	w.init(shape.out_nrns, shape.in_nrns,
 		shape.in_nrn_h - shape.out_nrn_h + 1,
@@ -23,17 +21,29 @@ ConvolutionLayer::ConvolutionLayer(
 	b.init(1, shape.out_nrns, shape.out_nrn_h, shape.out_nrn_w);
 	db.init(1, shape.out_nrns, shape.out_nrn_h, shape.out_nrn_w);
 
-	initConvDesc();
-
 	x.allocate();
+	dx.allocate();
 	b.allocate();
 	db.allocate();
 
-	w.randomise();
+	w.normalDistribution();
 	dw.fill(0.0f);
 	x.fill(0.0f);
+	dx.fill(0.0f);
 	b.fill(0.0f);
 	db.fill(0.0f);
+
+	initConvDesc();
+}
+
+void ConvolutionLayer::initConvDesc(int pad_h, int pad_w,
+	int stride_h, int stride_w, int dil_h, int dil_w,
+	cudnnConvolutionMode_t convDescMode, cudnnDataType_t convDescComputeType)
+{
+	CHECK_CUDNN(cudnnCreateConvolutionDescriptor(&convDesc));
+	CHECK_CUDNN(cudnnSetConvolution2dDescriptor(
+		convDesc, pad_h, pad_w, stride_h, stride_w, dil_h, dil_w,
+		convDescMode, convDescComputeType));
 }
 
 void ConvolutionLayer::init()
@@ -66,16 +76,6 @@ void ConvolutionLayer::init()
 	}
 }
 
-void ConvolutionLayer::initConvDesc(int pad_h, int pad_w,
-	int stride_h, int stride_w, int dil_h, int dil_w, 
-	cudnnConvolutionMode_t convDescMode, cudnnDataType_t convDescComputeType)
-{
-	CHECK_CUDNN(cudnnCreateConvolutionDescriptor(&convDesc));
-	CHECK_CUDNN(cudnnSetConvolution2dDescriptor(
-		convDesc, pad_h, pad_w, stride_h, stride_w, dil_h, dil_w, 
-		convDescMode, convDescComputeType));
-}
-
 void ConvolutionLayer::forward()
 {
 	CHECK_CUDNN(cudnnConvolutionForward(
@@ -90,17 +90,17 @@ void ConvolutionLayer::forward()
 void ConvolutionLayer::backward(float learning_rate, bool last)
 {
 	CHECK_CUDNN(cudnnConvolutionBackwardBias(
-		hCudnn,  alpha, dy->desc, dy->data, beta,  db.desc, db.data));
+		hCudnn, alpha, dy->desc, dy->data, beta, db.desc, db.data));
 
 	CHECK_CUDNN(cudnnConvolutionBackwardFilter(
 		hCudnn, alpha, x.desc, x.data, dy->desc, dy->data,
-		convDesc, algoBwdFilter,  workSpaceBwdFilter, workSpaceSizeInBytesBwdFilter,
-		beta,  dw.desc, dw.data));
+		convDesc, algoBwdFilter, workSpaceBwdFilter, workSpaceSizeInBytesBwdFilter,
+		beta, dw.desc, dw.data));
 
 	if (!last) {
 		CHECK_CUDNN(cudnnConvolutionBackwardData(
-			hCudnn,  alpha,  w.desc, w.data, dy->desc, dy->data,
-			convDesc, algoBwdData,  workSpaceBwdData, workSpaceSizeInBytesBwdData,
+			hCudnn, alpha, w.desc, w.data, dy->desc, dy->data,
+			convDesc, algoBwdData, workSpaceBwdData, workSpaceSizeInBytesBwdData,
 			beta, dx.desc, dx.data));
 	}
 

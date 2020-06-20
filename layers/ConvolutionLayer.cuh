@@ -31,9 +31,6 @@ private:
 	cudnnConvolutionBwdDataAlgo_t algoBwdData;
 	cudnnConvolutionBwdFilterAlgo_t algoBwdFilter;
 
-	float alpha[1] = { 1.0f };
-	float beta[1] = { 0.0f };
-
 	void initConvDesc(int pad_h = 0, int pad_w = 0, 
 		int stride_h = 1, int stride_w = 1, int dil_h = 1, int dil_w = 1, 
 		cudnnConvolutionMode_t convDescMode = CUDNN_CONVOLUTION,
@@ -45,10 +42,10 @@ public:
 		cudnnConvolutionBwdDataAlgo_t algoBwdData = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
 		cudnnConvolutionBwdFilterAlgo_t algoBwdFilter = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1);
 
+	void init();
+
 	void forward();
 	void backward(float learning_rate, bool last);
-
-	void init();
 
 	~ConvolutionLayer();
 };

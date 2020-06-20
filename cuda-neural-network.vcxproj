@@ -53,6 +53,8 @@
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;cudnn.lib;cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <TreatLinkerWarningAsErrors>
+      </TreatLinkerWarningAsErrors>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -74,6 +76,8 @@
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;cudnn.lib;cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <TreatLinkerWarningAsErrors>
+      </TreatLinkerWarningAsErrors>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -84,12 +88,14 @@
     <CudaCompile Include="common.cu" />
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="layers\ConvolutionLayer.cu" />
+    <CudaCompile Include="layers\ActivationLayer.cu" />
     <CudaCompile Include="NeuralNetwork.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh" />
     <ClInclude Include="layers\ConvolutionLayer.cuh" />
     <ClInclude Include="layers\Layer.cuh" />
+    <ClInclude Include="layers\ActivationLayer.cuh" />
     <ClInclude Include="NeuralNetwork.cuh" />
     <ClInclude Include="types\Descriptor.cuh" />
     <ClInclude Include="types\Filter.cuh" />

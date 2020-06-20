@@ -31,7 +31,7 @@ public:
 
 	int size() { return N * C * H * W; }
 
-	void randomise(float threshold = 1.0f)
+	void normalDistribution(float threshold = 1.0f)
 	{
 		assert(data);
 
@@ -40,6 +40,16 @@ public:
 
 		for (int i = 0; i < size(); i++) {
 			data[i] = normal_distribution(generator) * threshold;
+		}
+	}
+
+	void randomise(float scale = 1.0f)
+	{
+		assert(scale > 0.0f);
+		assert(data);
+
+		for (int i = 0; i < size(); i++) {
+			data[i] = rand() / ((float)RAND_MAX / (2.0f * scale)) - scale;
 		}
 	}
 

@@ -12,17 +12,22 @@ void NeuralNetwork::init()
 
 	x.init(tmp_x->N, tmp_x->C, tmp_x->H, tmp_x->W, tmp_x->format);
 	y.init(last_shape.batch_size, last_shape.out_nrns, last_shape.out_nrn_h, last_shape.out_nrn_w);
+	dy.init(last_shape.batch_size, last_shape.out_nrns, last_shape.out_nrn_h, last_shape.out_nrn_w);
 
 	x.allocate();
 	y.allocate();
+	dy.allocate();
 
 	x.fill(0);
 	y.fill(0);
+	dy.fill(0);
 
 	for (auto iter = layers.begin(); iter != layers.end() - 1; iter++) {
 		(*iter)->setY((*(iter + 1))->getX());
+		(*iter)->setdY((*(iter + 1))->getdX());
 	}
 	layers.back()->setY(&y);
+	layers.back()->setdY(&dy);
 
 	for (Layer* cur_layer : layers) {
 		cur_layer->init();
@@ -62,30 +67,26 @@ void NeuralNetwork::backward(Tensor& dy, float learning_rate)
 {
 	assert(initialized);
 
-	y = dy;
+	this->dy = dy;
 	for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
 		(*iter)->backward(learning_rate, *iter == layers.front());
 	}
 }
 
-__global__ void binaryCrossEntropyCost(float* predictions, float* target,
-	int size, float* cost) {
-
+__global__ void binaryCrossEntropyCost(float* predictions, float* target, int size, float* cost) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (index < size) {
+	if (index < size && fabsf(target[index] - predictions[index]) > 0.0000001f) {
 		float partial_cost = target[index] * logf(predictions[index])
 			+ (1.0f - target[index]) * logf(1.0f - predictions[index]);
 		atomicAdd(cost, -partial_cost / size);
 	}
 }
 
-__global__ void dBinaryCrossEntropyCost(float* predictions, float* target,
-	int size) {
-
+__global__ void dBinaryCrossEntropyError(float* predictions, float* target, int size) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (index < size) {
+	if (index < size && fabsf(target[index] - predictions[index]) > 0.0000001f) {
 		predictions[index] = -1.0 * (target[index] / predictions[index] - (1 - target[index]) / (1 - predictions[index]));
 	}
 }
@@ -93,17 +94,18 @@ __global__ void dBinaryCrossEntropyCost(float* predictions, float* target,
 void NeuralNetwork::calcError(Tensor& labels)
 {
 	dim3 block_size(128);
-	dim3 num_of_blocks((y.size() + block_size.x - 1) / block_size.x);
-	dBinaryCrossEntropyCost<<<num_of_blocks, block_size>>>(
-		y.data,
+	dim3 num_of_blocks((dy.size() + block_size.x - 1) / block_size.x);
+	dy = y;
+	dBinaryCrossEntropyError<<<num_of_blocks, block_size>>>(
+		dy.data,
 		labels.data,
-		y.size());
+		dy.size());
 	CHECK_CUDA(cudaGetLastError());
 }
 
 void NeuralNetwork::calcCost(Tensor& labels, float* cost)
 {
-	dim3 block_size(124);
+	dim3 block_size(128);
 	dim3 num_of_blocks((y.size() + block_size.x - 1) / block_size.x);
 	binaryCrossEntropyCost<<<num_of_blocks, block_size>>>(
 		y.data,
@@ -122,19 +124,26 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 	assert(y.W == labels.W);
 	assert(y.format == labels.format);
 
-	float* iterCost;
-	cudaMallocManaged(&iterCost, sizeof(float));
+	float cur_learning_rate = learning_rate;
+	float* cost;
 	int period = iters / 10;
+	int short_period = iters / 100;
+	float scale = 0.0003f;
+
 	if (!period)
 		period = 1;
+	if (!short_period)
+		short_period = 1;
+
+	cudaMallocManaged(&cost, sizeof(float));
 
 	layers.front()->setX(x);
 
 	CHECK_CUDA(cudaDeviceSynchronize());
 
 	for (int iteration = 0; iteration < iters; iteration++) {
-		float cost = 0.0f;
-		*iterCost = 0.0f;
+		*cost = 0.0f;
+		cur_learning_rate = cur_learning_rate * powf(1.0f + scale * iteration, -0.75);
 
 		for (Layer* cur_layer : layers) {
 			cur_layer->forward();
@@ -146,15 +155,14 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 			(*iter)->backward(learning_rate, *iter == layers.front());
 		}
 
-		calcCost(labels, iterCost);
-		cost += *iterCost;
+		calcCost(labels, cost);
 
-		if ((iteration + 1) % (period) == 0) {
-			printf("Iteration: %d, Cost: %f\n", iteration + 1, cost / 1/*number of batches*/);
+		if ((iteration < period && (iteration + 1) % (short_period) == 0) || (iteration + 1) % (period) == 0) {
+			printf("Iteration: %d, Cost: %f, learning_rate: %f\n", iteration + 1, *cost, cur_learning_rate);
 		}
 	}
 
 	CHECK_CUDA(cudaDeviceSynchronize());
 
-	CHECK_CUDA(cudaFree(iterCost));
+	CHECK_CUDA(cudaFree(cost));
 }

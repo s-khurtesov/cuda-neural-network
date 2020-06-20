@@ -6,6 +6,10 @@
     <CudaCompile Include="layers\ConvolutionLayer.cu">
       <Filter>layers</Filter>
     </CudaCompile>
+    <CudaCompile Include="NeuralNetwork.cu" />
+    <CudaCompile Include="layers\ActivationLayer.cu">
+      <Filter>layers</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh" />
@@ -26,6 +30,10 @@
     </ClInclude>
     <ClInclude Include="types\Descriptor.cuh">
       <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="NeuralNetwork.cuh" />
+    <ClInclude Include="layers\ActivationLayer.cuh">
+      <Filter>layers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

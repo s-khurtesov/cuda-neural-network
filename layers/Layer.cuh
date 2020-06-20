@@ -10,7 +10,12 @@ protected:
 	LayerShape shape;
 
 	Tensor x;
+	Tensor dx;
 	Tensor* y;
+	Tensor* dy;
+
+	float alpha[1] = { 1.0f };
+	float beta[1] = { 0.0f };
 
 public:
 	virtual ~Layer() = 0;
@@ -22,9 +27,11 @@ public:
 	LayerShape getShape() { return this->shape; };
 
 	Tensor* getX() { return &x; }
+	Tensor* getdX() { return &dx; }
 	Tensor* getY() { return y; }
 	void setX(Tensor& new_y) { x = new_y; }
 	void setY(Tensor* new_y) { y = new_y; }
+	void setdY(Tensor* new_dy) { dy = new_dy; }
 
 	virtual void init() = 0;
 };
