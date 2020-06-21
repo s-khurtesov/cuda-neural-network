@@ -4,10 +4,6 @@
 #include "Descriptor.cuh"
 
 class Tensor : public Descriptor {
-private:
-	bool allocated = false;
-	bool initialized = false;
-
 public:
 	cudnnTensorDescriptor_t desc;
 
@@ -30,21 +26,13 @@ public:
 		format = format_;
 		CHECK_CUDNN(cudnnCreateTensorDescriptor(&desc));
 		CHECK_CUDNN(cudnnSetTensor4dDescriptor(desc, format, dataType, N, C, H, W));
-		initialized = true;
-	}
-
-	void allocate()
-	{
-		assert(initialized);
-
 		CHECK_CUDA(cudaMallocManaged(&data, size() * sizeof(float)));
-		allocated = true;
+		initialized = true;
 	}
 
 	Tensor& operator=(Tensor& right) {
 		if (initialized) {
 			assert(right.initialized);
-			assert(right.allocated);
 			assert(N == right.N);
 			assert(C == right.C);
 			assert(H == right.H);
@@ -56,9 +44,6 @@ public:
 			init(right.N, right.C, right.H, right.W, right.format);
 		}
 
-		if (!allocated)
-			allocate();
-
 		CHECK_CUDA(cudaMemcpy(data, right.data, size() * sizeof(float), cudaMemcpyDefault));
 
 		return *this;
@@ -66,7 +51,7 @@ public:
 
 	~Tensor()
 	{
-		if (data && allocated) {
+		if (data) {
 			CHECK_CUDA(cudaFree(data));
 		}
 		if (desc && initialized) {

@@ -9,10 +9,7 @@ ActivationLayer::ActivationLayer(std::string name_, LayerShape shape_, cudnnHand
 	this->shape = shape_;
 
 	x.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
-	dx.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
-
-	x.allocate();
-	dx.allocate();
+	dx = x;
 
 	x.fill(0.0f);
 	dx.fill(0.0f);
@@ -41,6 +38,6 @@ void ActivationLayer::backward(float learning_rate, bool last)
 ActivationLayer::~ActivationLayer()
 {
 	if (activationDesc) {
-		cudnnDestroyActivationDescriptor(activationDesc);
+		CHECK_CUDNN(cudnnDestroyActivationDescriptor(activationDesc));
 	}
 }

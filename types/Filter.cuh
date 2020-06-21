@@ -27,6 +27,26 @@ public:
 		CHECK_CUDNN(cudnnCreateFilterDescriptor(&desc));
 		CHECK_CUDNN(cudnnSetFilter4dDescriptor(desc, dataType, format, N, C, H, W));
 		CHECK_CUDA(cudaMallocManaged(&data, size() * sizeof(float)));
+		initialized = true;
+	}
+
+	Filter& operator=(Filter& right) {
+		if (initialized) {
+			assert(right.initialized);
+			assert(N == right.N);
+			assert(C == right.C);
+			assert(H == right.H);
+			assert(W == right.W);
+			assert(format == right.format);
+			assert(dataType == right.dataType);
+		}
+		else {
+			init(right.N, right.C, right.H, right.W, right.format);
+		}
+
+		CHECK_CUDA(cudaMemcpy(data, right.data, size() * sizeof(float), cudaMemcpyDefault));
+
+		return *this;
 	}
 
 	~Filter()

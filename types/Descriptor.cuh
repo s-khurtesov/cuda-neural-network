@@ -10,6 +10,9 @@
 #define SHOW_MAX_W 2
 
 class Descriptor {
+protected:
+	bool initialized = false;
+
 public:
 	cudnnTensorFormat_t format;
 	const cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
@@ -68,42 +71,63 @@ public:
 	{
 		assert(data);
 
+		int tail_n = max_n / 2;
+		int head_n = max_n - tail_n;
+		int tail_c = max_c / 2;
+		int head_c = max_c - tail_c;
+		int tail_h = max_h / 2;
+		int head_h = max_h - tail_h;
+		int tail_w = max_w / 2;
+		int head_w = max_w - tail_w;
+
 		printf("%s:\n", descr);
 		for (int n = 0; n < N; n++) {
-			if (n < max_n / 2 || n >= N - max_n / 2) {
+			if (n < head_n || n >= N - tail_n) {
 				printf("    N_%d:\n", n);
 				for (int c = 0; c < C; c++) {
-					if (c < max_c / 2 || c >= C - max_c / 2) {
+					if (c < head_c || c >= C - tail_c) {
 						printf("        C_%d:\n", c);
 						for (int h = 0; h < H; h++) {
-							if (h < max_h / 2 || h >= H - max_h / 2) {
+							if (h < head_h || h >= H - tail_h) {
 								for (int w = 0; w < W; w++) {
-									if (w < max_w / 2 || w >= W - max_w / 2) {
+									if (w < head_w || w >= W - tail_w) {
 										printf("%11.8f ", data[n * C + c * H + h * W + w]);
 									}
 									else {
 										printf("... ");
-										w = W - max_w / 2 - 1;
+										w = W - tail_w - 1;
 									}
 								}
 								printf("\n");
 							}
 							else {
-								h = H - max_h / 2 - 1;
+								printf("            ...  ...\n");
+								h = H - tail_h - 1;
 							}
 						}
 					}
 					else {
-						printf("        ...  ...\n");
-						c = C - max_c / 2 - 1;
+						printf("        ...  ...  ...\n");
+						c = C - tail_c - 1;
 					}
 				}
 			}
 			else {
-				printf("    ...  ...  ...\n");
-				n = N - max_n / 2 - 1;
+				printf("    ...  ...  ...  ...\n");
+				n = N - tail_n - 1;
 			}
 		}
 		putchar('\n');
+	}
+
+	int nonZeroCount()
+	{
+		int count = 0;
+		for (int i = 0; i < size(); i++) {
+			if (data[i] != 0.0f) {
+				count++;
+			}
+		}
+		return count;
 	}
 };

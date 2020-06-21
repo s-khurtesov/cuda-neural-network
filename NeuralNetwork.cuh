@@ -27,7 +27,7 @@ public:
 	Tensor& forward(Tensor& x);
 	void backward(Tensor& dy, float learning_rate);
 
-	void train(Tensor& x, Tensor& labels, int iters, float learning_rate);
+	void train(Tensor& x, Tensor& labels, int iters, float learning_rate, float learning_rate_lowering_coef = 1.0f);
 
 	Tensor& getX() { return x; }
 	Tensor& getY() { return y; }

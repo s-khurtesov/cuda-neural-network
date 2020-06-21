@@ -9,9 +9,6 @@
 #define ACT_CLIPPED_RELU	CUDNN_ACTIVATION_CLIPPED_RELU
 #define ACT_ELU				CUDNN_ACTIVATION_ELU
 
-#define NAN_PROPAGATE		CUDNN_PROPAGATE_NAN
-#define NAN_NOT_PROPAGATE	CUDNN_NOT_PROPAGATE_NAN
-
 class ActivationLayer : public Layer {
 private:
 	cudnnHandle_t hCudnn;

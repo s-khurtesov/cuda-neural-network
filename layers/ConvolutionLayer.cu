@@ -10,21 +10,14 @@ ConvolutionLayer::ConvolutionLayer(
 	this->shape = shape_;
 
 	x.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
-	dx.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
-
 	w.init(shape.out_nrns, shape.in_nrns,
 		shape.in_nrn_h - shape.out_nrn_h + 1,
 		shape.in_nrn_w - shape.out_nrn_w + 1);
-	dw.init(shape.out_nrns, shape.in_nrns,
-		shape.in_nrn_h - shape.out_nrn_h + 1,
-		shape.in_nrn_w - shape.out_nrn_w + 1);
-	b.init(1, shape.out_nrns, shape.out_nrn_h, shape.out_nrn_w);
-	db.init(1, shape.out_nrns, shape.out_nrn_h, shape.out_nrn_w);
+	b.init(1, shape.out_nrns, 1, 1);
 
-	x.allocate();
-	dx.allocate();
-	b.allocate();
-	db.allocate();
+	dx = x;
+	dw = w;
+	db = b;
 
 	w.normalDistribution();
 	dw.fill(0.0f);
@@ -48,6 +41,13 @@ void ConvolutionLayer::initConvDesc(int pad_h, int pad_w,
 
 void ConvolutionLayer::init()
 {
+	int y_n, y_c, y_h, y_w;
+	CHECK_CUDNN(cudnnGetConvolution2dForwardOutputDim(convDesc, x.desc, w.desc, &y_n, &y_c, &y_h, &y_w));
+	assert(y->N == y_n);
+	assert(y->C == y_c);
+	assert(y->H == y_h);
+	assert(y->W == y_w);
+
 	CHECK_CUDNN(cudnnGetConvolutionForwardWorkspaceSize(
 		hCudnn, x.desc, w.desc, convDesc, y->desc, algoFwd, &workSpaceSizeInBytesFwd));
 	if (workSpaceSizeInBytesFwd) {
@@ -104,24 +104,30 @@ void ConvolutionLayer::backward(float learning_rate, bool last)
 			beta, dx.desc, dx.data));
 	}
 
+	CHECK_CUDA(cudaDeviceSynchronize());
+	printf("w non zero: %d, dw non zero: %d\n", w.nonZeroCount(), dw.nonZeroCount());
+
 	// Update Filter and Bias
 	float learn_alpha = -learning_rate;
 	CHECK_CUBLAS(cublasSaxpy_v2(hCublas, w.size(), &learn_alpha, dw.data, 1, w.data, 1));
 	CHECK_CUBLAS(cublasSaxpy_v2(hCublas, b.size(), &learn_alpha, db.data, 1, b.data, 1));
+
+	CHECK_CUDA(cudaDeviceSynchronize());
+	printf("UPDATED w non zero: %d\n", w.nonZeroCount(), dw.nonZeroCount());
 }
 
 ConvolutionLayer::~ConvolutionLayer()
 {
 	if (workSpaceFwd) {
-		cudaFree(workSpaceFwd);
+		CHECK_CUDA(cudaFree(workSpaceFwd));
 	}
 	if (workSpaceBwdFilter) {
-		cudaFree(workSpaceBwdFilter);
+		CHECK_CUDA(cudaFree(workSpaceBwdFilter));
 	}
 	if (workSpaceBwdData) {
-		cudaFree(workSpaceBwdData);
+		CHECK_CUDA(cudaFree(workSpaceBwdData));
 	}
 	if (convDesc) {
-		cudnnDestroyConvolutionDescriptor(convDesc);
+		CHECK_CUDNN(cudnnDestroyConvolutionDescriptor(convDesc));
 	}
 }

@@ -12,11 +12,7 @@ void NeuralNetwork::init()
 
 	x.init(tmp_x->N, tmp_x->C, tmp_x->H, tmp_x->W, tmp_x->format);
 	y.init(last_shape.batch_size, last_shape.out_nrns, last_shape.out_nrn_h, last_shape.out_nrn_w);
-	dy.init(last_shape.batch_size, last_shape.out_nrns, last_shape.out_nrn_h, last_shape.out_nrn_w);
-
-	x.allocate();
-	y.allocate();
-	dy.allocate();
+	dy = y;
 
 	x.fill(0);
 	y.fill(0);
@@ -115,7 +111,7 @@ void NeuralNetwork::calcCost(Tensor& labels, float* cost)
 	CHECK_CUDA(cudaGetLastError());
 }
 
-void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_rate)
+void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_rate, float learning_rate_lowering_coef)
 {
 	assert(initialized);
 	assert(y.N == labels.N);
@@ -128,14 +124,14 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 	float* cost;
 	int period = iters / 10;
 	int short_period = iters / 100;
-	float scale = 0.0003f;
+	float lr_decrement = (1.0f - learning_rate_lowering_coef) * learning_rate / iters;
 
 	if (!period)
 		period = 1;
 	if (!short_period)
 		short_period = 1;
 
-	cudaMallocManaged(&cost, sizeof(float));
+	CHECK_CUDA(cudaMallocManaged(&cost, sizeof(float)));
 
 	layers.front()->setX(x);
 
@@ -143,7 +139,7 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 
 	for (int iteration = 0; iteration < iters; iteration++) {
 		*cost = 0.0f;
-		cur_learning_rate = cur_learning_rate * powf(1.0f + scale * iteration, -0.75);
+		cur_learning_rate = cur_learning_rate - lr_decrement;
 
 		for (Layer* cur_layer : layers) {
 			cur_layer->forward();

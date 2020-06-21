@@ -10,6 +10,9 @@
     <CudaCompile Include="layers\ActivationLayer.cu">
       <Filter>layers</Filter>
     </CudaCompile>
+    <CudaCompile Include="layers\PoolingLayer.cu">
+      <Filter>layers</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh" />
@@ -33,6 +36,9 @@
     </ClInclude>
     <ClInclude Include="NeuralNetwork.cuh" />
     <ClInclude Include="layers\ActivationLayer.cuh">
+      <Filter>layers</Filter>
+    </ClInclude>
+    <ClInclude Include="layers\PoolingLayer.cuh">
       <Filter>layers</Filter>
     </ClInclude>
   </ItemGroup>

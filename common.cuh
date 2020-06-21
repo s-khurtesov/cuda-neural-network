@@ -9,6 +9,9 @@
 #include <string.h>
 #include <stdexcept>
 
+#define NAN_PROPAGATE		CUDNN_PROPAGATE_NAN
+#define NAN_NOT_PROPAGATE	CUDNN_NOT_PROPAGATE_NAN
+
 const char* __stdcall cublasGetErrorString(cublasStatus_t cublasStatus);
 
 void Check(errno_t err, errno_t success, const char* descr, const char* file, const int line);
