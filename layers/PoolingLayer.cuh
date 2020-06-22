@@ -26,8 +26,8 @@ private:
 
 public:
 	PoolingLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_,
-		int windowHeight_ = 1, int windowWidth_ = 1, 
-		int verticalStride_ = 1, int horizontalStride_ = 1, 
+		int windowHeight_ = 2, int windowWidth_ = 2, 
+		int verticalStride_ = 2, int horizontalStride_ = 2, 
 		int verticalPadding_ = 0, int horizontalPadding_ = 0, 
 		cudnnPoolingMode_t poolingMode_ = POOL_MAX_DET, 
 		cudnnNanPropagation_t maxpoolingNanOpt_ = NAN_NOT_PROPAGATE);

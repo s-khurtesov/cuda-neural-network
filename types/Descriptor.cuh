@@ -3,6 +3,7 @@
 #include "../common.cuh"
 #include <assert.h>
 #include <random>
+#include <functional>
 
 #define SHOW_MAX_N 2
 #define SHOW_MAX_C 2
@@ -120,14 +121,11 @@ public:
 		putchar('\n');
 	}
 
-	int nonZeroCount()
+	template<typename F>
+	void forEach(F function)
 	{
-		int count = 0;
 		for (int i = 0; i < size(); i++) {
-			if (data[i] != 0.0f) {
-				count++;
-			}
+			data[i] = function(data[i]);
 		}
-		return count;
 	}
 };

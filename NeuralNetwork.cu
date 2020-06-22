@@ -56,6 +56,7 @@ Tensor& NeuralNetwork::forward(Tensor& x)
 	for (Layer* cur_layer : layers) {
 		cur_layer->forward();
 	}
+	CHECK_CUDA(cudaDeviceSynchronize());
 	return y;
 }
 
@@ -67,12 +68,13 @@ void NeuralNetwork::backward(Tensor& dy, float learning_rate)
 	for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
 		(*iter)->backward(learning_rate, *iter == layers.front());
 	}
+	CHECK_CUDA(cudaDeviceSynchronize());
 }
 
 __global__ void binaryCrossEntropyCost(float* predictions, float* target, int size, float* cost) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (index < size && fabsf(target[index] - predictions[index]) > 0.0000001f) {
+	if (index < size) {
 		float partial_cost = target[index] * logf(predictions[index])
 			+ (1.0f - target[index]) * logf(1.0f - predictions[index]);
 		atomicAdd(cost, -partial_cost / size);
@@ -82,8 +84,9 @@ __global__ void binaryCrossEntropyCost(float* predictions, float* target, int si
 __global__ void dBinaryCrossEntropyError(float* predictions, float* target, int size) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (index < size && fabsf(target[index] - predictions[index]) > 0.0000001f) {
-		predictions[index] = -1.0 * (target[index] / predictions[index] - (1 - target[index]) / (1 - predictions[index]));
+	if (index < size) {
+		predictions[index] = -1.0f * (target[index] / predictions[index]
+			- (1.0f - target[index]) / (1.0f - predictions[index]));
 	}
 }
 
@@ -138,15 +141,12 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 	CHECK_CUDA(cudaDeviceSynchronize());
 
 	for (int iteration = 0; iteration < iters; iteration++) {
-		*cost = 0.0f;
-		cur_learning_rate = cur_learning_rate - lr_decrement;
-
 		for (Layer* cur_layer : layers) {
 			cur_layer->forward();
 		}
 
 		calcError(labels);
-
+		
 		for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
 			(*iter)->backward(learning_rate, *iter == layers.front());
 		}
@@ -154,8 +154,13 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 		calcCost(labels, cost);
 
 		if ((iteration < period && (iteration + 1) % (short_period) == 0) || (iteration + 1) % (period) == 0) {
-			printf("Iteration: %d, Cost: %f, learning_rate: %f\n", iteration + 1, *cost, cur_learning_rate);
+			printf("Iteration: %d, Cost: %f, learning_rate: %f, y_int: %d, dy_nan: %d, dy_inf: %d\n", iteration + 1, *cost, cur_learning_rate, 
+				std::count_if(y.data, y.data + y.size() - 1, [](float x) {return (int)x == (float)x; }), 
+				std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isnan(x); }), 
+				std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isinf(x); }));
 		}
+		*cost = 0.0f;
+		cur_learning_rate = cur_learning_rate - lr_decrement;
 	}
 
 	CHECK_CUDA(cudaDeviceSynchronize());

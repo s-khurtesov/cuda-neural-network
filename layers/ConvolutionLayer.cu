@@ -19,7 +19,7 @@ ConvolutionLayer::ConvolutionLayer(
 	dw = w;
 	db = b;
 
-	w.normalDistribution();
+	w.normalDistribution(0.08f);
 	dw.fill(0.0f);
 	x.fill(0.0f);
 	dx.fill(0.0f);
@@ -104,16 +104,10 @@ void ConvolutionLayer::backward(float learning_rate, bool last)
 			beta, dx.desc, dx.data));
 	}
 
-	CHECK_CUDA(cudaDeviceSynchronize());
-	printf("w non zero: %d, dw non zero: %d\n", w.nonZeroCount(), dw.nonZeroCount());
-
 	// Update Filter and Bias
 	float learn_alpha = -learning_rate;
 	CHECK_CUBLAS(cublasSaxpy_v2(hCublas, w.size(), &learn_alpha, dw.data, 1, w.data, 1));
 	CHECK_CUBLAS(cublasSaxpy_v2(hCublas, b.size(), &learn_alpha, db.data, 1, b.data, 1));
-
-	CHECK_CUDA(cudaDeviceSynchronize());
-	printf("UPDATED w non zero: %d\n", w.nonZeroCount(), dw.nonZeroCount());
 }
 
 ConvolutionLayer::~ConvolutionLayer()

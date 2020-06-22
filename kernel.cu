@@ -5,6 +5,7 @@
 #include "layers/ConvolutionLayer.cuh"
 #include "layers/ActivationLayer.cuh"
 #include "layers/PoolingLayer.cuh"
+#include "layers/DropoutLayer.cuh"
 #include "NeuralNetwork.cuh"
 
 #include <time.h>
@@ -41,24 +42,59 @@ int main()
         Tensor eval_x;
         Tensor eval_targets;
         Tensor y;
-        int batchSize = 20;
+        int batchSize = 1000;
         int channels = 3;
         int height = 50;
         int width = 50;
         int iterations = 1000;
-        float learning_rate = 0.01f;
+        float learning_rate = 0.0005f;
 
         // Set shapes
-        LayerShape l1(batchSize, channels,      channels * 3,   height,         width,          height / 3,     width / 3);
-        LayerShape l2(batchSize, l1.out_nrns,   l1.out_nrns,    l1.out_nrn_h,   l1.out_nrn_w,   l1.out_nrn_h,   l1.out_nrn_w);
-        LayerShape l3(batchSize, l2.out_nrns,   1,              l2.out_nrn_h,   l2.out_nrn_w,   1,              1);
-        LayerShape l4(batchSize, l3.out_nrns,   l3.out_nrns,    l3.out_nrn_h,   l3.out_nrn_w,   l3.out_nrn_h,   l3.out_nrn_w);
+        LayerShape l1(batchSize, channels, 16, 
+            height, width, 
+            height-2, width-2);
+        LayerShape l2(batchSize, l1.out_nrns, l1.out_nrns,
+            l1.out_nrn_h, l1.out_nrn_w,
+            l1.out_nrn_h / 2, l1.out_nrn_w / 2);
+
+        LayerShape l3(batchSize, l2.out_nrns, l2.out_nrns, l2.out_nrn_h, l2.out_nrn_w, l2.out_nrn_h, l2.out_nrn_w);
+
+        LayerShape l4(batchSize, l3.out_nrns, l3.out_nrns * 2,
+            l3.out_nrn_h, l3.out_nrn_w,
+            l3.out_nrn_h - 2, l3.out_nrn_w - 2);
+        LayerShape l5(batchSize, l4.out_nrns, l4.out_nrns,
+            l4.out_nrn_h, l4.out_nrn_w,
+            l4.out_nrn_h / 2, l4.out_nrn_w / 2);
+
+        LayerShape l6(batchSize, l5.out_nrns, l5.out_nrns, l5.out_nrn_h, l5.out_nrn_w, l5.out_nrn_h, l5.out_nrn_w);
+
+        LayerShape l7(batchSize, l6.out_nrns, 1,
+            l6.out_nrn_h, l6.out_nrn_w,
+            1, 1);
+
+        LayerShape l1_act(batchSize, l1.out_nrns, l1.out_nrns, l1.out_nrn_h, l1.out_nrn_w, l1.out_nrn_h, l1.out_nrn_w);
+        LayerShape l4_act(batchSize, l4.out_nrns, l4.out_nrns, l4.out_nrn_h, l4.out_nrn_w, l4.out_nrn_h, l4.out_nrn_w);
+        LayerShape l7_act(batchSize, l7.out_nrns, l7.out_nrns, l7.out_nrn_h, l7.out_nrn_w, l7.out_nrn_h, l7.out_nrn_w);
 
         // Build deep neural network model
-        nn.addLayer(new ConvolutionLayer(   "1 Convolution",        l1,  g_hCudnn, g_hCublas             ));
-        nn.addLayer(new ActivationLayer(    "1 ReLU Activation",    l2,  g_hCudnn,           ACT_RELU    ));
-        nn.addLayer(new ConvolutionLayer(   "2 Convolution",        l3,  g_hCudnn, g_hCublas             ));
-        nn.addLayer(new ActivationLayer(    "2 Sigmoid Activation", l4,  g_hCudnn,           ACT_SIGMOID ));
+        nn.addLayer(new ConvolutionLayer("1 Convolution", l1, g_hCudnn, g_hCublas));
+        nn.addLayer(new ActivationLayer("1 ReLU Activation", l1_act, g_hCudnn, 
+            ACT_RELU));
+        nn.addLayer(new PoolingLayer("2 Max Pooling", l2, g_hCudnn));
+        nn.addLayer(new DropoutLayer("3 Dropout", l3, g_hCudnn, 
+            0.02f, 22062020));
+        nn.addLayer(new ConvolutionLayer("4 Convolution", l4, g_hCudnn, g_hCublas));
+        nn.addLayer(new ActivationLayer("4 ReLU Activation", l4_act, g_hCudnn, 
+            ACT_RELU));
+        nn.addLayer(new PoolingLayer("5 Max Pooling", l5, g_hCudnn));
+        nn.addLayer(new DropoutLayer("6 Dropout", l6, g_hCudnn, 
+            0.03f, 20200622));
+        nn.addLayer(new ConvolutionLayer("7 Convolution", l7, g_hCudnn, g_hCublas));
+        nn.addLayer(new ActivationLayer("7 Sigmoid Activation", l7_act, g_hCudnn, 
+            ACT_SIGMOID));
+        nn.addLayer(new ActivationLayer("7 ReLU Activation", l7_act, g_hCudnn,
+            ACT_CLIPPED_RELU, NAN_NOT_PROPAGATE, 1.0f - FLT_EPSILON));
+
 
         // Initialize neural network
         nn.init();
@@ -68,8 +104,6 @@ int main()
         targets = nn.getY();
         initInputAndLabels(x, targets);
 
-        printf("x non zero: %d, targets non zero: %d\n", x.nonZeroCount(), targets.nonZeroCount());
-
         // Train model
         nn.train(x, targets, iterations, learning_rate, 0.5f);
 
@@ -77,8 +111,6 @@ int main()
         eval_x = nn.getX();
         eval_targets = nn.getY();
         initInputAndLabels(eval_x, eval_targets, true);
-
-        printf("eval_x non zero: %d, eval_targets non zero: %d\n", eval_x.nonZeroCount(), eval_targets.nonZeroCount());
 
         // Evaluate model
         y = nn.forward(eval_x);
@@ -91,7 +123,7 @@ int main()
     CleanCudnn(&g_hCudnn);
     CleanCublas(&g_hCublas);
     CleanCuda();
-
+    
     return 0;
 }
 
@@ -158,14 +190,23 @@ void initInputAndLabels(Tensor& x, Tensor& targets, bool evaluation)
 
 void stats(Tensor& x, Tensor& y, Tensor& targets)
 {
-    int right_predictions = 0;
+    int right_ones = 0;
+    int right_zeros = 0;
+    int all_ones = 0;
     for (int n = 0; n < targets.N; n++) {
         float prediction = (y.data[n] > 0.5f) ? 1.0f : 0.0f;
         if (prediction == targets.data[n]) {
-            right_predictions++;
+            if (prediction == 1.0f) {
+                right_ones++;
+            }
+            else {
+                right_zeros++;
+            }
         }
+        all_ones += prediction + 0.1f;
     }
-    printf("Accuracy: %f\n", (float)right_predictions / y.N);
+    printf("Accuracy: %f\n\tOnes: %f (%d/%d)\n\tZeros: %f (%d/%d)\n", (float)(right_ones + right_zeros) / y.N, 
+        (float)(right_ones) / y.N, right_ones, all_ones, (float)(right_zeros) / y.N, right_zeros, y.N - all_ones);
 }
 
 bool read_png(std::string filename, float* normalized_data, int x_channels, int x_height, int x_width)
