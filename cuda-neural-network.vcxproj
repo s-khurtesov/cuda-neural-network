@@ -100,6 +100,7 @@
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="layers\ConvolutionLayer.cu" />
     <CudaCompile Include="layers\ActivationLayer.cu" />
+    <CudaCompile Include="layers\DenseLayer.cu" />
     <CudaCompile Include="layers\DropoutLayer.cu" />
     <CudaCompile Include="layers\PoolingLayer.cu" />
     <CudaCompile Include="NeuralNetwork.cu" />
@@ -107,6 +108,7 @@
   <ItemGroup>
     <ClInclude Include="common.cuh" />
     <ClInclude Include="layers\ConvolutionLayer.cuh" />
+    <ClInclude Include="layers\DenseLayer.cuh" />
     <ClInclude Include="layers\DropoutLayer.cuh" />
     <ClInclude Include="layers\Layer.cuh" />
     <ClInclude Include="layers\ActivationLayer.cuh" />

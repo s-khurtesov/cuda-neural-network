@@ -13,6 +13,7 @@ private:
 	Tensor y;
 	Tensor dy;
 
+	void clampOutput(float min = 0.0f + FLT_EPSILON, float max = 1.0f - FLT_EPSILON);
 	void calcError(Tensor& labels);
 	void calcCost(Tensor& labels, float* cost);
 

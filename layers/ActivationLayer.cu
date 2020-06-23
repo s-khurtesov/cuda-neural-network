@@ -3,7 +3,8 @@
 ActivationLayer::ActivationLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_,
 	cudnnActivationMode_t activationMode_,
 	cudnnNanPropagation_t reluNanOpt_,
-	double coef_) : hCudnn(hCudnn_), activationMode(activationMode_), reluNanOpt(reluNanOpt_), coef(coef_)
+	double coef_) : hCudnn(hCudnn_), activationMode(activationMode_), reluNanOpt(reluNanOpt_), 
+	coef(coef_), activationDesc(NULL)
 {
 	this->name = name_;
 	this->shape = shape_;

@@ -16,6 +16,9 @@
     <CudaCompile Include="layers\DropoutLayer.cu">
       <Filter>layers</Filter>
     </CudaCompile>
+    <CudaCompile Include="layers\DenseLayer.cu">
+      <Filter>layers</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh" />
@@ -45,6 +48,9 @@
       <Filter>layers</Filter>
     </ClInclude>
     <ClInclude Include="layers\DropoutLayer.cuh">
+      <Filter>layers</Filter>
+    </ClInclude>
+    <ClInclude Include="layers\DenseLayer.cuh">
       <Filter>layers</Filter>
     </ClInclude>
   </ItemGroup>

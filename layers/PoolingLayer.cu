@@ -6,7 +6,8 @@ PoolingLayer::PoolingLayer(std::string name_, LayerShape shape_, cudnnHandle_t h
 	cudnnNanPropagation_t maxpoolingNanOpt_) 
 	: hCudnn(hCudnn_), poolingMode(poolingMode_), maxpoolingNanOpt(maxpoolingNanOpt_), 
 	windowHeight(windowHeight_), windowWidth(windowWidth_), verticalPadding(verticalPadding_), 
-	horizontalPadding(horizontalPadding_), verticalStride(verticalStride_), horizontalStride(horizontalStride_)
+	horizontalPadding(horizontalPadding_), verticalStride(verticalStride_), horizontalStride(horizontalStride_), 
+	poolingDesc(NULL)
 {
 	this->name = name_;
 	this->shape = shape_;
@@ -45,7 +46,9 @@ void PoolingLayer::forward()
 
 void PoolingLayer::backward(float learning_rate, bool last)
 {
-	CHECK_CUDNN(cudnnPoolingBackward(hCudnn, poolingDesc, alpha, y->desc, y->data, dy->desc, dy->data, x.desc, x.data, beta, dx.desc, dx.data));
+	if (!last) {
+		CHECK_CUDNN(cudnnPoolingBackward(hCudnn, poolingDesc, alpha, y->desc, y->data, dy->desc, dy->data, x.desc, x.data, beta, dx.desc, dx.data));
+	}
 }
 
 PoolingLayer::~PoolingLayer()

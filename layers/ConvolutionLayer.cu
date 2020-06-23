@@ -4,7 +4,9 @@ ConvolutionLayer::ConvolutionLayer(
 	std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_,
 	cudnnConvolutionFwdAlgo_t algoFwd_, cudnnConvolutionBwdDataAlgo_t algoBwdData_,
 	cudnnConvolutionBwdFilterAlgo_t algoBwdFilter_)
-	: hCudnn(hCudnn_), hCublas(hCublas_), algoFwd(algoFwd_), algoBwdData(algoBwdData_), algoBwdFilter(algoBwdFilter_)
+	: hCudnn(hCudnn_), hCublas(hCublas_), algoFwd(algoFwd_), algoBwdData(algoBwdData_), algoBwdFilter(algoBwdFilter_), 
+	workSpaceFwd(NULL), workSpaceSizeInBytesFwd(0), workSpaceBwdData(NULL), workSpaceSizeInBytesBwdData(0), 
+	workSpaceBwdFilter(NULL), workSpaceSizeInBytesBwdFilter(0), convDesc(NULL)
 {
 	this->name = name_;
 	this->shape = shape_;
@@ -19,7 +21,7 @@ ConvolutionLayer::ConvolutionLayer(
 	dw = w;
 	db = b;
 
-	w.normalDistribution(0.08f);
+	w.normalDistribution(0.9f);
 	dw.fill(0.0f);
 	x.fill(0.0f);
 	dx.fill(0.0f);

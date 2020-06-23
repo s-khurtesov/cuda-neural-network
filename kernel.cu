@@ -6,6 +6,7 @@
 #include "layers/ActivationLayer.cuh"
 #include "layers/PoolingLayer.cuh"
 #include "layers/DropoutLayer.cuh"
+#include "layers/DenseLayer.cuh"
 #include "NeuralNetwork.cuh"
 
 #include <time.h>
@@ -46,55 +47,85 @@ int main()
         int channels = 3;
         int height = 50;
         int width = 50;
-        int iterations = 1000;
-        float learning_rate = 0.0005f;
+        int iterations = 100;
+        float learning_rate = 0.01f;
 
         // Set shapes
+        // 1 Convolution
         LayerShape l1(batchSize, channels, 16, 
             height, width, 
-            height-2, width-2);
+            height - 2, width - 2);
+        // 1 Max Pooling
         LayerShape l2(batchSize, l1.out_nrns, l1.out_nrns,
             l1.out_nrn_h, l1.out_nrn_w,
             l1.out_nrn_h / 2, l1.out_nrn_w / 2);
 
-        LayerShape l3(batchSize, l2.out_nrns, l2.out_nrns, l2.out_nrn_h, l2.out_nrn_w, l2.out_nrn_h, l2.out_nrn_w);
-
-        LayerShape l4(batchSize, l3.out_nrns, l3.out_nrns * 2,
+        // 2 Convolution
+        LayerShape l3(batchSize, l2.out_nrns, l2.out_nrns * 2,
+            l2.out_nrn_h, l2.out_nrn_w,
+            l2.out_nrn_h - 2, l2.out_nrn_w - 2);
+        // 2 Max Pooling
+        LayerShape l4(batchSize, l3.out_nrns, l3.out_nrns,
             l3.out_nrn_h, l3.out_nrn_w,
-            l3.out_nrn_h - 2, l3.out_nrn_w - 2);
-        LayerShape l5(batchSize, l4.out_nrns, l4.out_nrns,
+            l3.out_nrn_h / 2, l3.out_nrn_w / 2);
+
+        // 3 Convolution
+        LayerShape l5(batchSize, l4.out_nrns, l4.out_nrns * 2,
             l4.out_nrn_h, l4.out_nrn_w,
-            l4.out_nrn_h / 2, l4.out_nrn_w / 2);
+            l4.out_nrn_h - 2, l4.out_nrn_w - 2);
+        // 3 Max Pooling
+        LayerShape l6(batchSize, l5.out_nrns, l5.out_nrns,
+            l5.out_nrn_h, l5.out_nrn_w,
+            l5.out_nrn_h / 2, l5.out_nrn_w / 2);
 
-        LayerShape l6(batchSize, l5.out_nrns, l5.out_nrns, l5.out_nrn_h, l5.out_nrn_w, l5.out_nrn_h, l5.out_nrn_w);
-
-        LayerShape l7(batchSize, l6.out_nrns, 1,
+        // 4 Dense
+        LayerShape l7(batchSize, l6.out_nrns, l6.out_nrns / 4,
             l6.out_nrn_h, l6.out_nrn_w,
+            l6.out_nrn_h / 2, l6.out_nrn_w / 2);
+
+        // 5 Dense
+        LayerShape l8(batchSize, l7.out_nrns, 1,
+            l7.out_nrn_h, l7.out_nrn_w,
             1, 1);
 
+        // Activation and dropout
         LayerShape l1_act(batchSize, l1.out_nrns, l1.out_nrns, l1.out_nrn_h, l1.out_nrn_w, l1.out_nrn_h, l1.out_nrn_w);
-        LayerShape l4_act(batchSize, l4.out_nrns, l4.out_nrns, l4.out_nrn_h, l4.out_nrn_w, l4.out_nrn_h, l4.out_nrn_w);
+        LayerShape l2_do(batchSize, l2.out_nrns, l2.out_nrns, l2.out_nrn_h, l2.out_nrn_w, l2.out_nrn_h, l2.out_nrn_w);
+        LayerShape l3_act(batchSize, l3.out_nrns, l3.out_nrns, l3.out_nrn_h, l3.out_nrn_w, l3.out_nrn_h, l3.out_nrn_w);
+        LayerShape l4_do(batchSize, l4.out_nrns, l4.out_nrns, l4.out_nrn_h, l4.out_nrn_w, l4.out_nrn_h, l4.out_nrn_w);
+        LayerShape l5_act(batchSize, l5.out_nrns, l5.out_nrns, l5.out_nrn_h, l5.out_nrn_w, l5.out_nrn_h, l5.out_nrn_w);
+        LayerShape l6_do(batchSize, l6.out_nrns, l6.out_nrns, l6.out_nrn_h, l6.out_nrn_w, l6.out_nrn_h, l6.out_nrn_w);
         LayerShape l7_act(batchSize, l7.out_nrns, l7.out_nrns, l7.out_nrn_h, l7.out_nrn_w, l7.out_nrn_h, l7.out_nrn_w);
+        LayerShape l7_do(batchSize, l7.out_nrns, l7.out_nrns, l7.out_nrn_h, l7.out_nrn_w, l7.out_nrn_h, l7.out_nrn_w);
+        LayerShape l8_act(batchSize, l8.out_nrns, l8.out_nrns, l8.out_nrn_h, l8.out_nrn_w, l8.out_nrn_h, l8.out_nrn_w);
 
         // Build deep neural network model
         nn.addLayer(new ConvolutionLayer("1 Convolution", l1, g_hCudnn, g_hCublas));
         nn.addLayer(new ActivationLayer("1 ReLU Activation", l1_act, g_hCudnn, 
             ACT_RELU));
-        nn.addLayer(new PoolingLayer("2 Max Pooling", l2, g_hCudnn));
-        nn.addLayer(new DropoutLayer("3 Dropout", l3, g_hCudnn, 
-            0.02f, 22062020));
-        nn.addLayer(new ConvolutionLayer("4 Convolution", l4, g_hCudnn, g_hCublas));
-        nn.addLayer(new ActivationLayer("4 ReLU Activation", l4_act, g_hCudnn, 
+        nn.addLayer(new PoolingLayer("1 Max Pooling", l2, g_hCudnn));
+        nn.addLayer(new DropoutLayer("1 Dropout", l2_do, g_hCudnn, 
+            0.2f, 22062020));
+        nn.addLayer(new ConvolutionLayer("2 Convolution", l3, g_hCudnn, g_hCublas));
+        nn.addLayer(new ActivationLayer("2 ReLU Activation", l3_act, g_hCudnn, 
             ACT_RELU));
-        nn.addLayer(new PoolingLayer("5 Max Pooling", l5, g_hCudnn));
-        nn.addLayer(new DropoutLayer("6 Dropout", l6, g_hCudnn, 
-            0.03f, 20200622));
-        nn.addLayer(new ConvolutionLayer("7 Convolution", l7, g_hCudnn, g_hCublas));
-        nn.addLayer(new ActivationLayer("7 Sigmoid Activation", l7_act, g_hCudnn, 
+        nn.addLayer(new PoolingLayer("2 Max Pooling", l4, g_hCudnn));
+        nn.addLayer(new DropoutLayer("2 Dropout", l4_do, g_hCudnn, 
+            0.3f, 20200622));
+        nn.addLayer(new ConvolutionLayer("3 Convolution", l5, g_hCudnn, g_hCublas));
+        nn.addLayer(new ActivationLayer("3 ReLU Activation", l5_act, g_hCudnn,
+            ACT_RELU));
+        nn.addLayer(new PoolingLayer("3 Max Pooling", l6, g_hCudnn));
+        nn.addLayer(new DropoutLayer("3 Dropout", l6_do, g_hCudnn,
+            0.3f, 22202006));
+        nn.addLayer(new DenseLayer("4 Dense", l7, g_hCublas));
+        nn.addLayer(new ActivationLayer("4 ReLU Activation", l7_act, g_hCudnn,
+            ACT_RELU));
+        nn.addLayer(new DropoutLayer("4 Dropout", l7_do, g_hCudnn,
+            0.5f, 06202022));
+        nn.addLayer(new DenseLayer("5 Dense", l8, g_hCublas));
+        nn.addLayer(new ActivationLayer("5 ReLU Activation", l8_act, g_hCudnn,
             ACT_SIGMOID));
-        nn.addLayer(new ActivationLayer("7 ReLU Activation", l7_act, g_hCudnn,
-            ACT_CLIPPED_RELU, NAN_NOT_PROPAGATE, 1.0f - FLT_EPSILON));
-
 
         // Initialize neural network
         nn.init();
@@ -203,7 +234,7 @@ void stats(Tensor& x, Tensor& y, Tensor& targets)
                 right_zeros++;
             }
         }
-        all_ones += prediction + 0.1f;
+        all_ones += prediction;
     }
     printf("Accuracy: %f\n\tOnes: %f (%d/%d)\n\tZeros: %f (%d/%d)\n", (float)(right_ones + right_zeros) / y.N, 
         (float)(right_ones) / y.N, right_ones, all_ones, (float)(right_zeros) / y.N, right_zeros, y.N - all_ones);

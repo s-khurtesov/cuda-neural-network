@@ -7,13 +7,13 @@ class DropoutLayer : public Layer {
 private:
 	cudnnHandle_t hCudnn;
 
-	cudnnDropoutDescriptor_t dropoutDesc = NULL;
+	cudnnDropoutDescriptor_t dropoutDesc;
 	float dropout;
-	float* states = NULL;
-	size_t statesSizeInBytes = 0;
+	float* states;
+	size_t statesSizeInBytes;
 	unsigned long long seed;
-	float* reserveSpace = NULL;
-	size_t reserveSpaceSizeInBytes = 0;
+	float* reserveSpace;
+	size_t reserveSpaceSizeInBytes;
 
 	void initDropoutDesc();
 

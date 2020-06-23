@@ -90,6 +90,14 @@ __global__ void dBinaryCrossEntropyError(float* predictions, float* target, int 
 	}
 }
 
+__global__ void clamp(float* predictions, int size, float min, float max) {
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (index < size) {
+		predictions[index] = fmaxf(min, fminf(predictions[index], max));
+	}
+}
+
 void NeuralNetwork::calcError(Tensor& labels)
 {
 	dim3 block_size(128);
@@ -110,6 +118,16 @@ void NeuralNetwork::calcCost(Tensor& labels, float* cost)
 		y.data,
 		labels.data,
 		y.size(), cost);
+	CHECK_CUDA(cudaDeviceSynchronize());
+	CHECK_CUDA(cudaGetLastError());
+}
+
+void NeuralNetwork::clampOutput(float min, float max)
+{
+	dim3 block_size(128);
+	dim3 num_of_blocks((y.size() + block_size.x - 1) / block_size.x);
+	clamp<<<num_of_blocks, block_size>>>(
+		y.data, y.size(), min, max);
 	CHECK_CUDA(cudaDeviceSynchronize());
 	CHECK_CUDA(cudaGetLastError());
 }
@@ -145,6 +163,7 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 			cur_layer->forward();
 		}
 
+		clampOutput();
 		calcError(labels);
 		
 		for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {

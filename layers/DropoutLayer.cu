@@ -2,7 +2,8 @@
 
 DropoutLayer::DropoutLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_,
 	float dropout_, unsigned long long seed_)
-	: hCudnn(hCudnn_), dropout(dropout_), seed(seed_)
+	: hCudnn(hCudnn_), dropout(dropout_), seed(seed_), dropoutDesc(NULL), states(NULL),
+	statesSizeInBytes(0), reserveSpace(NULL), reserveSpaceSizeInBytes(0)
 {
 	this->name = name_;
 	this->shape = shape_;
@@ -42,8 +43,10 @@ void DropoutLayer::forward()
 
 void DropoutLayer::backward(float learning_rate, bool last)
 {
-	CHECK_CUDNN(cudnnDropoutBackward(hCudnn, dropoutDesc, dy->desc, dy->data, dx.desc, dx.data, 
-		reserveSpace, reserveSpaceSizeInBytes));
+	if (!last) {
+		CHECK_CUDNN(cudnnDropoutBackward(hCudnn, dropoutDesc, dy->desc, dy->data, dx.desc, dx.data,
+			reserveSpace, reserveSpaceSizeInBytes));
+	}
 }
 
 DropoutLayer::~DropoutLayer()
