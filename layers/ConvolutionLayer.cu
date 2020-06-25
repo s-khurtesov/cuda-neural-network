@@ -1,7 +1,8 @@
 #include "ConvolutionLayer.cuh"
 
 ConvolutionLayer::ConvolutionLayer(
-	std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_,
+	std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_, float filterScale,
+	int dil_h, int dil_w, int stride_h, int stride_w, int pad_h, int pad_w,
 	cudnnConvolutionFwdAlgo_t algoFwd_, cudnnConvolutionBwdDataAlgo_t algoBwdData_,
 	cudnnConvolutionBwdFilterAlgo_t algoBwdFilter_)
 	: hCudnn(hCudnn_), hCublas(hCublas_), algoFwd(algoFwd_), algoBwdData(algoBwdData_), algoBwdFilter(algoBwdFilter_), 
@@ -21,14 +22,19 @@ ConvolutionLayer::ConvolutionLayer(
 	dw = w;
 	db = b;
 
-	w.normalDistribution(1.0f / sqrtf((float)shape.in_nrns * (float)shape.in_nrn_h * (float)shape.in_nrn_w));
+	if (filterScale == 0.0f) {
+		w.normalDistribution(1.0f / sqrtf((float)(w.C * w.H * w.W)));
+	}
+	else {
+		w.normalDistribution(filterScale);
+	}
 	dw.fill(0.0f);
 	x.fill(0.0f);
 	dx.fill(0.0f);
 	b.fill(0.0f);
 	db.fill(0.0f);
 
-	initConvDesc();
+	initConvDesc(pad_h, pad_w, stride_h, stride_w, dil_h, dil_w);
 }
 
 void ConvolutionLayer::initConvDesc(int pad_h, int pad_w,
@@ -85,7 +91,7 @@ void ConvolutionLayer::forward()
 		convDesc, algoFwd, workSpaceFwd, workSpaceSizeInBytesFwd,
 		beta, y->desc, y->data));
 
-	CHECK_CUDNN(cudnnAddTensor(
+	CHECK_CUDNN(cudnnAddTensor(// ??????????????????????????????????????????????????????????????????
 		hCudnn, alpha, b.desc, b.data, alpha, y->desc, y->data));
 }
 

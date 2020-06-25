@@ -16,7 +16,7 @@ private:
 	void clampOutput(float min = 0.0f + FLT_EPSILON, float max = 1.0f - FLT_EPSILON);
 	void calcError(Tensor& labels);
 	void calcCost(Tensor& labels, float* cost);
-	void calcAccuracy(Tensor& y, Tensor& targets, int* p_right_ones, int* p_right_zeros, int* p_all_ones);
+	void calcAccuracy(Tensor& y, Tensor& targets, int* p_right_ones, int* p_right_zeros, int* p_all_ones, int* p_all_zeros);
 
 public:
 	NeuralNetwork() { }

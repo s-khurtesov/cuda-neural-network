@@ -20,7 +20,7 @@ private:
 	void initOnes();
 
 public:
-	DenseLayer(std::string name_, LayerShape shape_, cublasHandle_t hCublas_);
+	DenseLayer(std::string name_, LayerShape shape_, cublasHandle_t hCublas_, float filterScale = 0.0f);
 
 	void init();
 

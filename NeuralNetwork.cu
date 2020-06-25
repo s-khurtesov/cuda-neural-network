@@ -138,7 +138,7 @@ void NeuralNetwork::train(ImageDataset& dataset, int epochs, float learning_rate
 	float* cost;
 	int period = dataset.size() / 5;
 	int short_period = period / 5;
-	float lr_decrement = (1.0f - learning_rate_lowering_coef) * learning_rate / epochs;
+	float lr_decrement = epochs > 1 ? (1.0f - learning_rate_lowering_coef) * learning_rate / (epochs - 1) : 0.0f;
 
 	if (!period)
 		period = 1;
@@ -151,59 +151,94 @@ void NeuralNetwork::train(ImageDataset& dataset, int epochs, float learning_rate
 
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int epoch = 0; epoch < epochs; epoch++) {
-		int right_ones = 0, right_zeros = 0, all_ones = 0;
+		// Init epoch
+		int right_ones = 0, right_zeros = 0, all_ones = 0, all_zeros = 0;
+		float lr_batch_increment = dataset.size() > 1 ? (1.0f - learning_rate_lowering_coef) * cur_learning_rate / (dataset.size() - 1) : 0.0f;
+		float batch_learning_rate;
+
+		if (!(epoch & 1)) {
+			batch_learning_rate = cur_learning_rate * learning_rate_lowering_coef;
+		}
+		else {
+			batch_learning_rate = cur_learning_rate;
+			lr_batch_increment = -lr_batch_increment;
+		}
+
+		float epoch_cost = 0.0f;
+
 		for (int batch = 0; batch < dataset.size(); batch++) {
+			*cost = 0.0f;
 			Tensor& input = dataset.getInput(batch);
 			Tensor& targets = dataset.getTarget(batch);
 
+			// TODO: Make this more efficient
 			layers.front()->setX(input);
 
-			*cost = 0.0f;
+			// Forward Propagation
 			for (Layer* cur_layer : layers) {
 				cur_layer->forward();
 			}
 
-			//clampOutput();
+			// Clamp output to avoid infinity in Binary Cross Entropy calculations
+			clampOutput();
+
+			// Calc dy
 			calcError(targets);
 
+			// Backpropagtion
 			for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
-				(*iter)->backward(learning_rate, *iter == layers.front());
+				(*iter)->backward(batch_learning_rate, *iter == layers.front());
 			}
-			calcCost(targets, cost);
 
-			calcAccuracy(y, targets, &right_ones, &right_zeros, &all_ones);
+			// Calc statistics and print it sometimes
+			calcCost(targets, cost);
+			epoch_cost += *cost;
+			calcAccuracy(y, targets, &right_ones, &right_zeros, &all_ones, &all_zeros);
 			if ((batch < period && (batch + 1) % (short_period) == 0) || (batch + 1) % (period) == 0) {
 				if (debug) {
-					printf("\tBatch: %4d, Cost: %1.4f, learning_rate: %1.5f, y_int: %4d, dy_nan: %4d, dy_inf: %4d", batch + 1, *cost, cur_learning_rate,
+					printf("    Batch: %4d, Cost: %1.4f, learning_rate: %1.5f, y_int: %4d, dy_nan: %4d, dy_inf: %4d", batch + 1, *cost, batch_learning_rate,
 						std::count_if(y.data, y.data + y.size() - 1, [](float x) {return (int)x == (float)x; }),
 						std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isnan(x); }),
 						std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isinf(x); }));
 				}
 				else {
-					printf("\tBatch: %4d, Cost: %1.4f, learning_rate: %1.5f", batch + 1, *cost, cur_learning_rate);
+					printf("    Batch: %4d, Cost: %1.4f, learning_rate: %1.5f", batch + 1, *cost, batch_learning_rate);
 				}
 
-				printf(", Accuracy: %1.2f, Ones: %1.2f (%4d/%4d), Zeros: %1.2f (%4d/%4d)\n", (float)(right_ones + right_zeros) / (targets.N * (batch + 1)),
-					(float)(right_ones) / all_ones, right_ones, all_ones, (float)(right_zeros) / ((targets.N * (batch + 1)) - all_ones), right_zeros, (targets.N * (batch + 1)) - all_ones);
+				printf(", Accuracy: %1.2f, Ones: %1.2f (%4d/%4d), Zeros: %1.2f (%4d/%4d)\n", (float)(right_ones + right_zeros) / (all_ones + all_zeros),
+					all_ones ? (float)(right_ones) / all_ones : 0.0f, right_ones, all_ones, all_zeros ? (float)(right_zeros) / all_zeros : 0.0f, right_zeros, all_zeros);
+				right_ones = right_zeros = all_ones = all_zeros = 0;
 			}
+
+			// Increment learning rate for each batch
+			batch_learning_rate += lr_batch_increment;
 		}
-		printf("Epoch: %3d, Cost: %1.4f, learning_rate: %1.5f\n", epoch + 1, *cost, cur_learning_rate);
-		if (*cost <= earlyStop) {
+		// Print epoch summary
+		epoch_cost /= dataset.size();
+		printf("Epoch: %3d, Cost: %1.4f, learning_rate: %1.5f-%1.5f\n\n", epoch + 1, epoch_cost, 
+			cur_learning_rate - (!(epoch & 1) ? lr_batch_increment * dataset.size() : 0.0f), 
+			cur_learning_rate - ((epoch & 1) ? -lr_batch_increment * dataset.size() : 0.0f));
+
+		// Early stop
+		if (epoch_cost <= earlyStop) {
 			break;
 		}
-		cur_learning_rate = cur_learning_rate - lr_decrement;
+
+		// Decrement learning rate for each epoch
+		cur_learning_rate -= lr_decrement;
 	}
 
 	CHECK_CUDA(cudaDeviceSynchronize());
-	auto end = std::chrono::high_resolution_clock::now();
 
+	// Print elapsed time
+	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
 	std::cout << "Time: " << duration.count() << 's' << std::endl;
 
 	CHECK_CUDA(cudaFree(cost));
 }
 
-void NeuralNetwork::calcAccuracy(Tensor& y, Tensor& targets, int* p_right_ones, int* p_right_zeros, int* p_all_ones)
+void NeuralNetwork::calcAccuracy(Tensor& y, Tensor& targets, int* p_right_ones, int* p_right_zeros, int* p_all_ones, int* p_all_zeros)
 {
 	int right_ones = 0;
 	int right_zeros = 0;
@@ -224,6 +259,7 @@ void NeuralNetwork::calcAccuracy(Tensor& y, Tensor& targets, int* p_right_ones, 
 	*p_right_ones += right_ones;
 	*p_right_zeros += right_zeros;
 	*p_all_ones += all_ones;
+	*p_all_zeros += targets.N - all_ones;
 }
 
 void NeuralNetwork::summary()

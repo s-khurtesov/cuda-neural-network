@@ -59,15 +59,15 @@ private:
 
         // Fit to number of element of each class (if VALIDATION begin at end)
         if (type == DatasetType::TEST) {
-            files_parasitised.erase(files_parasitised.begin(), files_parasitised.end() - n_parasitised * numberOfBatches);
-            files_uninfected.erase(files_uninfected.begin(), files_uninfected.end() - n_uninfected * numberOfBatches);
+            files_parasitised.erase(files_parasitised.begin(), files_parasitised.end() - (int)(n_parasitised * numberOfBatches * 1.1f));
+            files_uninfected.erase(files_uninfected.begin(), files_uninfected.end() - (int)(n_uninfected * numberOfBatches * 1.1f));
         }
         else {
-            files_parasitised.erase(files_parasitised.begin() + n_parasitised * numberOfBatches, files_parasitised.end());
-            files_uninfected.erase(files_uninfected.begin() + n_uninfected * numberOfBatches, files_uninfected.end());
+            files_parasitised.erase(files_parasitised.begin() + (int)(n_parasitised * numberOfBatches * 1.1f), files_parasitised.end());
+            files_uninfected.erase(files_uninfected.begin() + (int)(n_uninfected * numberOfBatches * 1.1f), files_uninfected.end());
         }
-        assert(files_parasitised.size() == n_parasitised * numberOfBatches);
-        assert(files_uninfected.size() == n_uninfected * numberOfBatches);
+        assert(files_parasitised.size() >= n_parasitised * numberOfBatches);
+        assert(files_uninfected.size() >= n_uninfected * numberOfBatches);
 
         // Load images
         std::filesystem::path path;
@@ -83,15 +83,23 @@ private:
                     path = files_parasitised[batch * n_parasitised + n];
 
                     assert(read_png(path.string(), input[batch].data + n * C * H * W, C, H, W));
+                    //input[batch].show(path.string().c_str(), 2, 3, 50, 50);
+                    int nonzero = std::count_if(input[batch].data + n * C * H * W, input[batch].data + (n + 1) * C * H * W, [](float x) {return x > 0.0f; });
+                    //printf("[parasited] Nonzeros %d\n", nonzero);
+                    assert(nonzero > 0);
 
                     target[batch].data[n] = 1.0f;
                     parasitised_loaded++;
                 }
-                // Second half parasited: n = { 0, ..., n_uninfected - 1}
+                // Second half uninfected: n = { 0, ..., n_uninfected - 1}
                 for (int n = 0; n < n_uninfected; n++) {
                     path = files_uninfected[batch * n_uninfected + n];
 
                     assert(read_png(path.string(), input[batch].data + (n + n_parasitised) * C * H * W, C, H, W));
+                    //input[batch].show(path.string().c_str(), 2, 3, 50, 50);
+                    int nonzero = std::count_if(input[batch].data + (n + n_parasitised) * C * H * W, input[batch].data + ((n + n_parasitised) + 1) * C * H * W, [](float x) {return x > 0.0f; });
+                    //printf("[uninfected] Nonzeros %d\n", nonzero);
+                    assert(nonzero > 0);
 
                     target[batch].data[n + n_parasitised] = 0.0f;
                     uninfected_loaded++;
@@ -127,6 +135,7 @@ private:
                     else {
                         goto Parasitized;
                     }
+                    //printf("%1.0f ", target[batch].data[n]);
                 }
             }
         }
@@ -159,6 +168,8 @@ private:
             }
         }
 
+        //printf("%s\n[read_png] Nonzeros %d\n", filename.c_str(), std::count_if(normalized_data, normalized_data + x_channels * x_height * x_width, [](float x) {return x > 0.0f; }));
+
         stbi_image_free(data);
 
         return true;
@@ -169,6 +180,7 @@ public:
 	ImageDataset(DatasetType type_, int numberOfBatches_, LayerShape& inputShape, LayerShape& outputShape, bool shuffle=false)
 		: type(type_), numberOfBatches(numberOfBatches_)
 	{
+        // Initialize and allocate
 		input.resize(numberOfBatches);
 		target.resize(numberOfBatches);
 		for (Tensor& tensor : input) {
@@ -177,7 +189,19 @@ public:
 		for (Tensor& tensor : target) {
 			tensor.init(outputShape.batch_size, outputShape.out_nrns, outputShape.out_nrn_h, outputShape.out_nrn_w);
 		}
+
+        // Load
         load(shuffle);
+
+        // Check
+        for (int b = 0; b < size(); b++) {
+            for (int n = 0; n < inputShape.batch_size; n++) {
+                int nonzero = std::count_if(getInput(b).data + n * getInput(b).size() / inputShape.batch_size,
+                    getInput(b).data + (n + 1) * getInput(b).size() / inputShape.batch_size, [](float x) {return x > 0.0f; });
+                //printf("Batch %d, N_%d: %d nonzeros\n", b + 1, n + 1, nonzero);
+                assert(nonzero > 0);
+            }
+        }
 	}
 
 	int size()

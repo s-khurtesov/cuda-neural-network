@@ -53,7 +53,7 @@ public:
 		assert(data);
 
 		for (int i = 0; i < size(); i++) {
-			data[i] = rand() / ((float)RAND_MAX / (2.0f * scale)) - scale;
+			data[i] = ((float)rand() / (float)RAND_MAX) * scale;
 		}
 	}
 

@@ -1,23 +1,31 @@
 #include "DenseLayer.cuh"
 
 DenseLayer::DenseLayer(
-	std::string name_, LayerShape shape_, cublasHandle_t hCublas_)
+	std::string name_, LayerShape shape_, cublasHandle_t hCublas_, float filterScale)
 	: hCublas(hCublas_), ones(NULL)
 {
 	this->name = name_;
 	this->shape = shape_;
 
+	//assert(shape.in_nrn_h == 1);
+	//assert(shape.in_nrn_w == 1);
+	//assert(shape.out_nrn_h == 1);
+	//assert(shape.out_nrn_w == 1);
+
 	x.init(shape.batch_size, shape.in_nrns, shape.in_nrn_h, shape.in_nrn_w);
-	w.init(shape.out_nrns, shape.in_nrns,
-		shape.in_nrn_h - shape.out_nrn_h + 1,
-		shape.in_nrn_w - shape.out_nrn_w + 1);
-	b.init(1, shape.out_nrns, 1, 1);
+	w.init(shape.out_nrns * shape.out_nrn_h * shape.out_nrn_w, shape.in_nrns * shape.in_nrn_h * shape.in_nrn_w, 1, 1);
+	b.init(1, shape.out_nrns * shape.out_nrn_h * shape.out_nrn_w, 1, 1);
 
 	dx = x;
 	dw = w;
 	db = b;
 
-	w.normalDistribution(1.0f / sqrtf((float)shape.in_nrns * (float)shape.in_nrn_h * (float)shape.in_nrn_w));
+	if (filterScale == 0.0f) {
+		w.normalDistribution(1.0f / sqrtf((float)(w.C * w.H * w.W)));
+	}
+	else {
+		w.normalDistribution(filterScale);
+	}
 	dw.fill(0.0f);
 	x.fill(0.0f);
 	dx.fill(0.0f);
@@ -38,7 +46,7 @@ __global__ void FillOnes(float* vec, int size)
 
 void DenseLayer::initOnes()
 {
-	int size = shape.out_nrns * shape.out_nrn_h * shape.out_nrn_w;
+	int size = shape.batch_size;
 	CHECK_CUDA(cudaMallocManaged(&ones, size * sizeof(float)));
 
 	dim3 block_size(128);
@@ -49,6 +57,11 @@ void DenseLayer::initOnes()
 
 void DenseLayer::init()
 {
+	//assert(y->shape.in_nrn_h == 1);
+	//assert(y->shape.in_nrn_w == 1);
+	//assert(y->shape.out_nrn_h == 1);
+	//assert(y->shape.out_nrn_w == 1);
+	assert(y->C * y->H * y->W == w.N);
 }
 
 void DenseLayer::forward()
@@ -62,6 +75,9 @@ void DenseLayer::forward()
 	// y = y + b * ones
 	CHECK_CUBLAS(cublasSgemm_v2(hCublas, CUBLAS_OP_N, CUBLAS_OP_N, M, N, 1, alpha,
 		b.data, M, ones, 1, alpha, y->data, M));
+
+	//CHECK_CUDA(cudaDeviceSynchronize());
+	//y->show(name.c_str());
 }
 
 void DenseLayer::backward(float learning_rate, bool last)

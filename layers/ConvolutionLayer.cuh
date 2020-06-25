@@ -31,13 +31,14 @@ private:
 	cudnnConvolutionBwdDataAlgo_t algoBwdData;
 	cudnnConvolutionBwdFilterAlgo_t algoBwdFilter;
 
-	void initConvDesc(int pad_h = 2, int pad_w = 2, 
-		int stride_h = 1, int stride_w = 1, int dil_h = 3, int dil_w = 3, 
+	void initConvDesc(int pad_h, int pad_w, 
+		int stride_h, int stride_w, int dil_h, int dil_w, 
 		cudnnConvolutionMode_t convDescMode = CUDNN_CONVOLUTION,
 		cudnnDataType_t convDescComputeType = CUDNN_DATA_FLOAT);
 
 public:
-	ConvolutionLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_, 
+	ConvolutionLayer(std::string name_, LayerShape shape_, cudnnHandle_t hCudnn_, cublasHandle_t hCublas_, float filterScale = 0.0f, 
+		int dil_h = 3, int dil_w = 3, int stride_h = 1, int stride_w = 1, int pad_h = 2, int pad_w = 2,
 		cudnnConvolutionFwdAlgo_t algoFwd = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM,
 		cudnnConvolutionBwdDataAlgo_t algoBwdData = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
 		cudnnConvolutionBwdFilterAlgo_t algoBwdFilter = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1);
