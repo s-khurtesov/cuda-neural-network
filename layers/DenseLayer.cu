@@ -17,7 +17,7 @@ DenseLayer::DenseLayer(
 	dw = w;
 	db = b;
 
-	w.normalDistribution(0.9f);
+	w.normalDistribution(1.0f / sqrtf((float)shape.in_nrns * (float)shape.in_nrn_h * (float)shape.in_nrn_w));
 	dw.fill(0.0f);
 	x.fill(0.0f);
 	dx.fill(0.0f);

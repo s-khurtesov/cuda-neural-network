@@ -10,11 +10,9 @@ void NeuralNetwork::init()
 	Tensor* tmp_x = layers.front()->getX();
 	LayerShape last_shape = layers.back()->getShape();
 
-	x.init(tmp_x->N, tmp_x->C, tmp_x->H, tmp_x->W, tmp_x->format);
 	y.init(last_shape.batch_size, last_shape.out_nrns, last_shape.out_nrn_h, last_shape.out_nrn_w);
 	dy = y;
 
-	x.fill(0);
 	y.fill(0);
 	dy.fill(0);
 
@@ -132,20 +130,15 @@ void NeuralNetwork::clampOutput(float min, float max)
 	CHECK_CUDA(cudaGetLastError());
 }
 
-void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_rate, float learning_rate_lowering_coef)
+void NeuralNetwork::train(ImageDataset& dataset, int epochs, float learning_rate, float learning_rate_lowering_coef, float earlyStop, bool debug)
 {
 	assert(initialized);
-	assert(y.N == labels.N);
-	assert(y.C == labels.C);
-	assert(y.H == labels.H);
-	assert(y.W == labels.W);
-	assert(y.format == labels.format);
 
 	float cur_learning_rate = learning_rate;
 	float* cost;
-	int period = iters / 10;
-	int short_period = iters / 100;
-	float lr_decrement = (1.0f - learning_rate_lowering_coef) * learning_rate / iters;
+	int period = dataset.size() / 5;
+	int short_period = period / 5;
+	float lr_decrement = (1.0f - learning_rate_lowering_coef) * learning_rate / epochs;
 
 	if (!period)
 		period = 1;
@@ -154,35 +147,91 @@ void NeuralNetwork::train(Tensor& x, Tensor& labels, int iters, float learning_r
 
 	CHECK_CUDA(cudaMallocManaged(&cost, sizeof(float)));
 
-	layers.front()->setX(x);
-
 	CHECK_CUDA(cudaDeviceSynchronize());
 
-	for (int iteration = 0; iteration < iters; iteration++) {
-		for (Layer* cur_layer : layers) {
-			cur_layer->forward();
-		}
+	auto start = std::chrono::high_resolution_clock::now();
+	for (int epoch = 0; epoch < epochs; epoch++) {
+		int right_ones = 0, right_zeros = 0, all_ones = 0;
+		for (int batch = 0; batch < dataset.size(); batch++) {
+			Tensor& input = dataset.getInput(batch);
+			Tensor& targets = dataset.getTarget(batch);
 
-		clampOutput();
-		calcError(labels);
-		
-		for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
-			(*iter)->backward(learning_rate, *iter == layers.front());
-		}
+			layers.front()->setX(input);
 
-		calcCost(labels, cost);
+			*cost = 0.0f;
+			for (Layer* cur_layer : layers) {
+				cur_layer->forward();
+			}
 
-		if ((iteration < period && (iteration + 1) % (short_period) == 0) || (iteration + 1) % (period) == 0) {
-			printf("Iteration: %d, Cost: %f, learning_rate: %f, y_int: %d, dy_nan: %d, dy_inf: %d\n", iteration + 1, *cost, cur_learning_rate, 
-				std::count_if(y.data, y.data + y.size() - 1, [](float x) {return (int)x == (float)x; }), 
-				std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isnan(x); }), 
-				std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isinf(x); }));
+			//clampOutput();
+			calcError(targets);
+
+			for (auto iter = layers.rbegin(); iter != layers.rend(); iter++) {
+				(*iter)->backward(learning_rate, *iter == layers.front());
+			}
+			calcCost(targets, cost);
+
+			calcAccuracy(y, targets, &right_ones, &right_zeros, &all_ones);
+			if ((batch < period && (batch + 1) % (short_period) == 0) || (batch + 1) % (period) == 0) {
+				if (debug) {
+					printf("\tBatch: %4d, Cost: %1.4f, learning_rate: %1.5f, y_int: %4d, dy_nan: %4d, dy_inf: %4d", batch + 1, *cost, cur_learning_rate,
+						std::count_if(y.data, y.data + y.size() - 1, [](float x) {return (int)x == (float)x; }),
+						std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isnan(x); }),
+						std::count_if(dy.data, dy.data + dy.size() - 1, [](float x) {return isinf(x); }));
+				}
+				else {
+					printf("\tBatch: %4d, Cost: %1.4f, learning_rate: %1.5f", batch + 1, *cost, cur_learning_rate);
+				}
+
+				printf(", Accuracy: %1.2f, Ones: %1.2f (%4d/%4d), Zeros: %1.2f (%4d/%4d)\n", (float)(right_ones + right_zeros) / (targets.N * (batch + 1)),
+					(float)(right_ones) / all_ones, right_ones, all_ones, (float)(right_zeros) / ((targets.N * (batch + 1)) - all_ones), right_zeros, (targets.N * (batch + 1)) - all_ones);
+			}
 		}
-		*cost = 0.0f;
+		printf("Epoch: %3d, Cost: %1.4f, learning_rate: %1.5f\n", epoch + 1, *cost, cur_learning_rate);
+		if (*cost <= earlyStop) {
+			break;
+		}
 		cur_learning_rate = cur_learning_rate - lr_decrement;
 	}
 
 	CHECK_CUDA(cudaDeviceSynchronize());
+	auto end = std::chrono::high_resolution_clock::now();
+
+	auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+	std::cout << "Time: " << duration.count() << 's' << std::endl;
 
 	CHECK_CUDA(cudaFree(cost));
+}
+
+void NeuralNetwork::calcAccuracy(Tensor& y, Tensor& targets, int* p_right_ones, int* p_right_zeros, int* p_all_ones)
+{
+	int right_ones = 0;
+	int right_zeros = 0;
+	int all_ones = 0;
+
+	for (int n = 0; n < targets.N; n++) {
+		float prediction = (y.data[n] > 0.5f) ? 1.0f : 0.0f;
+		if (prediction == targets.data[n]) {
+			if (prediction == 1.0f) {
+				right_ones++;
+			}
+			else {
+				right_zeros++;
+			}
+		}
+		all_ones += prediction;
+	}
+	*p_right_ones += right_ones;
+	*p_right_zeros += right_zeros;
+	*p_all_ones += all_ones;
+}
+
+void NeuralNetwork::summary()
+{
+	printf("Neural Network Summary:\n");
+	for (Layer* layer : layers) {
+		printf("%s:\n In:\t%d x %d x %d\n Out:\t%d x %d x %d\n\n", layer->getName().c_str(),
+			layer->getShape().in_nrns, layer->getShape().in_nrn_h, layer->getShape().in_nrn_w,
+			layer->getShape().out_nrns, layer->getShape().out_nrn_h, layer->getShape().out_nrn_w);
+	}
 }

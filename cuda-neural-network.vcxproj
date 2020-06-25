@@ -116,6 +116,7 @@
     <ClInclude Include="NeuralNetwork.cuh" />
     <ClInclude Include="types\Descriptor.cuh" />
     <ClInclude Include="types\Filter.cuh" />
+    <ClInclude Include="types\ImageDataset.cuh" />
     <ClInclude Include="types\LayerShape.cuh" />
     <ClInclude Include="types\Tensor.cuh" />
   </ItemGroup>

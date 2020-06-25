@@ -31,8 +31,8 @@ private:
 	cudnnConvolutionBwdDataAlgo_t algoBwdData;
 	cudnnConvolutionBwdFilterAlgo_t algoBwdFilter;
 
-	void initConvDesc(int pad_h = 0, int pad_w = 0, 
-		int stride_h = 1, int stride_w = 1, int dil_h = 1, int dil_w = 1, 
+	void initConvDesc(int pad_h = 2, int pad_w = 2, 
+		int stride_h = 1, int stride_w = 1, int dil_h = 3, int dil_w = 3, 
 		cudnnConvolutionMode_t convDescMode = CUDNN_CONVOLUTION,
 		cudnnDataType_t convDescComputeType = CUDNN_DATA_FLOAT);
 

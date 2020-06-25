@@ -92,7 +92,7 @@ public:
 							if (h < head_h || h >= H - tail_h) {
 								for (int w = 0; w < W; w++) {
 									if (w < head_w || w >= W - tail_w) {
-										printf("%11.8f ", data[n * C + c * H + h * W + w]);
+										printf("%11.8f ", data[n * C * H * W + c * H * W + h * W + w]);
 									}
 									else {
 										printf("... ");

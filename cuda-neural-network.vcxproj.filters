@@ -53,6 +53,9 @@
     <ClInclude Include="layers\DenseLayer.cuh">
       <Filter>layers</Filter>
     </ClInclude>
+    <ClInclude Include="types\ImageDataset.cuh">
+      <Filter>types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="layers">
